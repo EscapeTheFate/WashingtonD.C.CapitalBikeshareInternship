@@ -1,6 +1,6 @@
 
 # Project: Capital Bikesharing internship
-# Name: Marcel Gu.S
+# Name: Marcel Gu.
 # Due Date: 24.12.2024
 # Goals: 1. Bike rental modelling by using weather data in Washington D.C. in 2022
 #        2. Hot Zone Visualisation
