@@ -134,11 +134,24 @@ hist(bike_list[[2]]$wind_speed, breaks = c(seq(from = 2, to = 20, by = 1)),
      col="peachpuff")
 abline(v = mean(bike_list[[2]]$wind_speed), col='red', lwd=3, lty='dashed')
 # --> Right-skewed distribution
-plot(y = bike_list[[2]]$wind_speed, x = bike_list[[2]]$obs_count, bty = "n",
-     pch = 16, col = alpha("red", 0.3), xlab = "Days since first obs.", ylab = "Wind speed (mph)", xaxt = "n")
+ind2 <- c(180:260)
+ind <- setdiff(1:334, ind2)
+plot(y = bike_list[[2]]$wind_speed[ind], x = bike_list[[2]]$obs_count[ind], bty = "n", main = "Seasonal Trends in Wind Speeds",
+     pch = 16, col = alpha("red", 0.6), xlab = "Days since first obs.", ylab = "Wind speed (mph)", xaxt = "n")
 abline(h = mean(bike_list[[2]]$wind_speed), col='red', lwd=3, lty='dashed')      # mean
-segments(x0 = 260, y0 = 4, x1 = 260, y1 = 12, col = alpha("blue", 0.4), lwd = 2) # highlight zone
-segments(x0 = 180, y0 = 4, x1 = 180, y1 = 12, col = alpha("blue", 0.4), lwd = 2) # highlight zone
+points(y = bike_list[[2]]$wind_speed[ind2], x = bike_list[[2]]$obs_count[ind2], bty = "n",
+       pch = 16, col = alpha("blue", 0.6))
+month_breaks <- c(1, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334)
+month_labels <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+abline(v = c(31.5, 59.5, 90.5, 120.5, 151.5, 
+             181.5, 212.5, 243.5, 273.5, 304.5),
+       col=alpha("black", 0.3), lwd=0.5, lty='dashed')
+axis(1, at = month_breaks, labels = month_labels)
+lines(lowess(bike_list[[2]] %>% select(wind_speed)), col='purple', lwd = 2) # smoothing trend
+legend("topright", legend = c("Trend Smoothing"),  
+       col = c("purple"), lty = 1, cex = 0.6)
+#segments(x0 = 260, y0 = 4, x1 = 260, y1 = 12, col = alpha("blue", 0.4), lwd = 2) # highlight zone
+#segments(x0 = 180, y0 = 4, x1 = 180, y1 = 12, col = alpha("blue", 0.4), lwd = 2) # highlight zone
 bike_list[[2]]$date[c(180,260)]
 par(mfrow = c(1, 1))
 # Calculate a simple moving average with a window size of 7 and 30
@@ -252,7 +265,7 @@ par(mfrow = c(1, 1))
 rm(foo, foo2, i)
 # --> Variance is very large at 0, and counts decrease slightly with increasing
 #     precipitation, but the effect does not seem large; If the variable is 
-#     actually singificant in the final model, the outlier should be removed
+#     actually singificant in the final model, the outlier should probably be removed
 
 # Correlation for all stations, only station 2 and over all station
 cor(bike$count,bike$precipitation, use = "pairwise.complete.obs") # Over all
@@ -274,7 +287,7 @@ bike_list[[2]]$snowfall[which(bike_list[[2]]$snowfall > 0)] # 6.9 2.6 2.6 0.2 0.
 
 # Let's calculate the overall avg. count and emp. distribution of counts on all
 # 5 days, but also do this in combination with snow_depth variable
-bike %>% filter(snowfall > 0) %>% drop_na() %>% group_by(obs_count) %>% 
+bike %>% filter(snowfall > 0) %>% group_by(obs_count) %>% drop_na() %>%
   summarize(mean(count), snow = first(snowfall), snow_depth = first(snow_depth)) %>% 
   arrange(desc(snow))
 # Compare this to the mean count when its not snowing:
@@ -327,7 +340,7 @@ hist(foo$cor, main = "Emp. distribution of Cor.", xlab = "Cor. of all stations")
 
 ## For mean_temperature ----
 summary(bike_list[[2]]$mean_temperature) 
-# --> Looks very normally distributed
+# --> Looks rather normally distributed
 par(mfrow = c(1, 2))
 hist(bike_list[[2]]$mean_temperature,
      main = "Overall mean temperatures (b = 5)",
@@ -378,10 +391,8 @@ for (i in 1:9){
 par(mfrow = c(1, 1))
 rm(foo, foo2, ma1, ma2, i)
 # --> The plots clearly show that counts and variance drastically increase with 
-#     increasing mean temperature values. For large mean temperatures, the
-#     distribution also shifts more from a normal towards higher values for
-#     count. However, the variance also decreases for most stations between 
-#     60 - 70 °F, before increasing again as mentioned before.
+#     increasing mean temperature values. The variance also decreases for most stations 
+#     near minimum and maximum
 
 # Correlation for all stations, only stations 2 and over all station
 cor(bike$count, bike$mean_temperature, use = "pairwise.complete.obs") # Over all
@@ -392,8 +403,7 @@ hist(foo$cor, breaks = c(seq(from = 0.3, to = 0.8, by = 0.025)),
      main = "Emp. distribution of Cor.", xlab = "Cor. of all stations")
 # --> Correlation is the highest it has ever been here
 
-# To summarize, temperature is clearly the most important aspect for the model,
-# and it looks like an exponential increase 
+# To summarize, temperature is clearly the most important aspect for the model
 
 
 ## For count ----
@@ -402,14 +412,13 @@ summary(bike_list[[1]]$count) # Some slight differences between station 2 and al
 which(is.na(bike_list[[90]]$count)) # It seems like every stations has exactly 3 NAs?
 # How many times are there 1 counts in general?
 which(bike$count == 1)
+which(bike$count <= 5)
 length(which(bike$count == 1))/length(bike$count) # less 0.3%
 # What stations has to lowest and highest mean/median counts?
-# Lowest:
+# Lowest and highest 5 (row numbers are incorrect):
 bike %>% group_by(station) %>% summarize(mean = mean(count, na.rm = T),
-         median = median(count, na.rm = T)) %>% arrange(mean, median)
-# Highest: 
-bike %>% group_by(station) %>% summarize(mean = mean(count, na.rm = T),
-         median = median(count, na.rm = T)) %>% arrange(desc(mean), desc(median))
+         median = median(count, na.rm = T)) %>% arrange(desc(mean)) %>% slice(1:5, 96:100)
+
 # Lets take a look at the 3 lowest, the 3 highest and somewhere inbetween (by mean)
 foo <- bike %>% group_by(station) %>% summarize(mean = mean(count, na.rm = T),
           median = median(count, na.rm = T)) %>% arrange(mean) %>% 
@@ -425,7 +434,7 @@ for (i in 1:9){
 }
 par(mfrow = c(1, 1))
 rm(foo, foo2, station_name, i)
-bike_list[[2]]$date[210:250] # These are the dates where the plot exhibits very counts
+bike_list[[2]]$date[210:250] # These are the dates where the plot exhibits very high counts
 
 # Lets look at histograms:
 foo <- bike %>% group_by(station) %>% summarize(mean = mean(count, na.rm = T),
@@ -828,8 +837,8 @@ pvcm <- pvcm(log(count) ~ wind_speed +
 # apply to each individual in a standard F-Test. Here, we are comparing a pooled
 # model on the full sample vs. a model based on the estimation of an equation for
 # each individual 
-pooltest(plm.pool, pvcm) # intercept are identical
-pooltest(plm1, pvcm) # intercepts are different 
+pooltest(plm.pool, pvcm) # test includes intercept 
+pooltest(plm1, pvcm) # test excludes intercepts & intercepts are assumed to be different
 # --> coefficients change over individuals
 pFtest(plm1, plm.pool) # null of pFtest: OLS better than FE --> FE better
 plmtest(plm.pool, effect = "individual", type=("bp")) # null: No station-FE --> FE better
@@ -844,7 +853,7 @@ summary(plm2 <- plm(log(count) ~ wind_speed +
                       mean_temperature +
                       I(mean_temperature^2) + as.factor(month),
                     data, model = "within", effect = "individual"))
-pFtest(plm2, plm1) # --> Time effects should be included
+pFtest(plm2, plm1) # --> (monthly) Time effects should be included
 # phtest(plm1, plm.random) # Hausman test for comparison --> FE as good as RE
 
 # Thus, we continue with a model with month- and station-FE. The next is to 
@@ -869,6 +878,8 @@ summary(plm4 <- plm(log(count) ~ wind_speed +
                       as.factor(month) +
                       IsWeekend,
                     data, model = "within", effect = "individual"))
+pFtest(plm3, plm2)
+pFtest(plm4, plm2)
 # --> Weekdays Dummy seems more powerful
 
 # Include IsSummerHoliday and IsFreezing?
@@ -907,7 +918,7 @@ summary(plm6 <- plm(log(count) ~ wind_speed +
                       as.factor(month) +
                       as.factor(weekday) +
                       IsFreezing +
-                      adj_lagged_count_by_week,
+                      log(adj_lagged_count_by_week),
                     data, model = "within", effect = "individual"))
 # Significant difference observable between lags in the model. Non-adjusted lags
 # have much larger impact, while adjusted lags that account for missing obser-
@@ -1075,7 +1086,8 @@ summary(plm.final <- plm(log(count) ~ wind_speed +
                       I(mean_temperature^2) + 
                       as.factor(month) +
                       as.factor(weekday) +
-                      IsFreezing,
+                      IsFreezing +
+                      log(adj_lagged_count_by_week),
                     data, model = "within", effect = "individual"))
 
 # (JanuarySlope + NovemberSlope) * mean_temperature +
@@ -1336,7 +1348,8 @@ par(mfrow = c(1, 1))
 # in FE --> If significant (alt. hypo.), then FE.6 does not hold
 pwartest(plm.final)
 u_hat <- resid(plm.final)
-summary(lm <- lm(u_hat ~ lag(u_hat, 1)))
+k = 7
+summary(lm <- lm(u_hat ~ lag(u_hat, k) + I(lag(u_hat, k)^2)+ I(lag(u_hat, k)^2)))
 (delta = -1/(334-1))
 (delta-coef(lm)[2])/sqrt(diag(vcov(lm)))[2]
 qt(0.975, 29390) # critical val 
@@ -1350,49 +1363,4 @@ pbsytest(plm.pool) # (at least) AR(1) error / presence of serial correlation
 # Breusch-Godfrey/Wooldridge test of serial correlation for (the idiosyncratic 
 # component of) the errors in panel models
 pbgtest(plm.final) # order = NULL (def) uses the min number of obs over the time dim
-
-
-# Create map --------------------------------------------------------------
-library(osmdata)
-library(ggplot2)
-library(tidyverse)
-library(sf)
-
-roads <- getbb("Liverpool UK") %>% opq(timeout = 3500) %>% 
-  add_osm_feature(key = "highway", value = c("motorway", "primary", "secondary",
-                                             "tertiary", "residential", "living_street",
-                                             "unclassified"))
-library(osmdata)
-library(ggplot2)
-library(sf)
-dc_bbox <- osmdata::getbb("Washington D.C.")
-main_roads <- opq(bbox = dc_bbox) %>%
-  add_osm_feature(key = "highway", 
-                  value = c("motorway", "primary", "secondary", "tertiary", "residential")) %>%
-  osmdata_sf()
-
-
-library(osmdata)
-library(ggplot2)
-setwd("C:/Users/marce/Downloads/")
-install.packages("httr2_0.5.1.tar.gz", repos = NULL, type = "source")
-install.packages("osmdata_0.1.8.tar.gz", repos = NULL, type = "source")
-washington_bb <- getbb("Washington")
-
-# A 2x2 matrix
-tucson_bb <- matrix(data = c(-111.0, -110.7, 31.0, 32.3),
-                    nrow = 2,
-                    byrow = TRUE)
-# Update column and row names
-colnames(tucson_bb) <- c("min", "max")
-rownames(tucson_bb) <- c("x", "y")
-# Print the matrix to the console
-tucson_major <- tucson_bb %>% opq() %>%
-  add_osm_feature(key = "highway", 
-                  value = c("motorway", "primary", "secondary")) %>%
-  osmdata_sf()
-
-hampi_sf <- opq ("hampi india") %>%
-  add_osm_feature (key = "historic", value = "ruins") %>%
-  osmdata_sf ()
 

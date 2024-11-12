@@ -65,6 +65,10 @@ length(which(spl$x > 8 & spl$x < 9)) # the 31 obs we use for august (their index
 index <- which(spl$x > 8 & spl$x < 9) # Intercept x-level 
 interpolation_x <- spl$x[index]
 interpolation_y <- spl$y[index]
+plot(spl, bty = "n", pch = 16, col = alpha("black", 0.6), xlim = c(0, 12), xaxt = "n",
+     xlab = "Spline x", ylab = "Spline y", main = "Spline interpolation of FE effects")
+axis(1, at = seq(0.5, 11.5, by = 1))
+points(x = coefs$x, y = coefs$y, bty = "n", pch = 16, col = alpha("red", 1))
 
 # Prepare for prediction of august section per station:
 # To-Do: Fix lag_count!
@@ -165,20 +169,23 @@ bike <- bind_rows(bike_list)
 bike <- bike %>% select(-IsAugust)
 
 # Lets take a look at the 3 lowest, the 3 highest and somewhere inbetween (by mean)
-foo <- bike %>% group_by(station) %>% summarize(mean = mean(count, na.rm = T),
-                                                median = median(count, na.rm = T)) %>% arrange(mean) %>% 
+foo <- bike %>% group_by(station) %>% summarize(mean = mean(count, na.rm = T)) %>% arrange(desc(mean)) %>% 
   slice(c(1:3, 49:51, 98:100)) %>% select(station) %>% as.vector()
+rank <- c(1:3, 49:51, 98:100)
+#count_y <- c(450, 330, 350, 220, 160, 140, 140, 120, 130)
 par(mfrow = c(3, 3))
 for (i in 1:length(foo$station)){
   foo2 <- bike %>% filter(station == foo$station[i]) %>% select(count, obs_count, month) %>% drop_na()
-  station_name <- paste("Station", i)
-  plot(y = foo2$count[which(foo2$month != 8)], x = foo2$obs_count[which(foo2$month != 8)], bty = "n", pch = 16, col = alpha("black", 0.6),
-       xlab = "Obs. Nr.", ylab = "Counts", main = station_name, xaxt = "n")
-  axis(1, at = c(1, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334))
+  station_name <- paste(foo$station[i],paste0("(Rank:", rank[i], ")"))
+  plot(y = foo2$count[which(foo2$month != 8)], x = foo2$obs_count[which(foo2$month != 8)], bty = "n", pch = 16, col = alpha("black", 0.4),
+       xlab = "", ylab = "Counts", main = station_name, xaxt = "n") # ylim = c(0,count_y[i])
+  month_breaks <- c(1, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334)
+  month_labels <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
   abline(v = c(31.5, 59.5, 90.5, 120.5, 151.5, 
                181.5, 212.5, 243.5, 273.5, 304.5),
          col=alpha("black", 0.3), lwd=0.5, lty='dashed')
-  points(y = foo2$count[which(foo2$month == 8)], x = foo2$obs_count[which(foo2$month == 8)], bty = "n", pch = 16, col = alpha("red", 0.6))
+  axis(1, at = month_breaks, labels = month_labels)
+  points(y = foo2$count[which(foo2$month == 8)], x = foo2$obs_count[which(foo2$month == 8)], bty = "n", pch = 16, col = alpha("red", 0.4))
 }
 par(mfrow = c(1, 1))
 
@@ -488,4 +495,11 @@ coordinate_df <- coordinate_df %>% mutate(scaled_FE,
 coordinate_df <- coordinate_df %>% mutate(round.FE = round(FE, 3),
                                           round.scaled_FE = round(scaled_FE, 3))
 # write.csv(coordinate_df, "C:/Users/marce/Documents/PraktikumProjekt_Bauer/coords.csv", row.names = F)
+
+
+# Fixed effects ranking ---------------------------------------------------
+coordinate_df <- read.csv("C:/Users/marce/Documents/PraktikumProjekt_Bauer/coords.csv")
+coordinate_df %>% group_by(station) %>% select(FE) %>% arrange(desc(FE)) # top5
+coordinate_df %>% group_by(station) %>% select(FE) %>% arrange(FE) # bottom5
+
 
