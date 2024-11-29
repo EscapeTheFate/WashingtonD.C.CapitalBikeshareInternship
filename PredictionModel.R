@@ -200,3 +200,63 @@ get_interval(x = data[100,], plm.model = mod.lm, type = "prediction", cleaned = 
 get_interval(x = data[100,], plm.model = mod.lm, type = "forecast", cleaned = F , sigma = "specific", smearing = "specific")
 get_interval(x = data[100,], plm.model = mod.lm, type = "forecast", cleaned = F, sigma = "default", smearing = "default")
 
+# Regression Results Plots ------------------------------------------------
+# We are also including a prediction vs. mean temperature plot:
+dep_mean_temp <- seq(10, 90, length.out = 640)
+predictions <- data.frame(x = dep_mean_temp,
+                          y_hat = c(rep.int(NA, length(dep_mean_temp))),
+                          y_hat_lower = c(rep.int(NA, length(dep_mean_temp))),
+                          y_hat_upper = c(rep.int(NA, length(dep_mean_temp))),
+                          y_hat_lower_forecast = c(rep.int(NA, length(dep_mean_temp))),
+                          y_hat_upper_forecast = c(rep.int(NA, length(dep_mean_temp))),
+                          IsFreezing = ifelse(dep_mean_temp <= 32, 1, 0))
+
+result.data <- data %>% filter(station == "New Hampshire Ave & T St NW", month == 8)
+(vec <- result.data[1,])
+# Untouched vars: weekday (monday), month (august), snow_depth (0), snowfall (0)
+vec$wind_speed[1] <- mean(result.data$wind_speed)
+vec$precipitation[1] <- mean(result.data$precipitation)
+vec$adj_lagged_count_by_week[1] <- mean(result.data$adj_lagged_count_by_week)
+vec$mean_temperature[1] <- mean(result.data$mean_temperature)
+(vec)
+for (i in 1:length(dep_mean_temp)){
+  vec$mean_temperature[1] <- dep_mean_temp[i]
+  if(dep_mean_temp[i] <= 32){
+    vec$IsFreezing[1] <- 1
+  }
+  else{
+    vec$IsFreezing[1] <- 0
+  }
+  pred <- get_interval(x = vec, plm.model = mod.lm, type = "prediction", cleaned = F, sigma = "specific")
+  fore <- get_interval(x = vec, plm.model = mod.lm, type = "forecast", cleaned = F, sigma = "specific", smearing = "specific")
+  predictions$y_hat[i] <- as.vector(pred[1])
+  predictions$y_hat_lower[i] <- as.vector(pred[2])
+  predictions$y_hat_upper[i] <- as.vector(pred[3])
+  predictions$y_hat_lower_forecast[i] <- as.vector(fore[2])
+  predictions$y_hat_upper_forecast[i] <- as.vector(fore[3])
+}
+# View(predictions)
+
+# Plot ----------------------------------------------------------------
+# Add expected val
+ind <- which(predictions$IsFreezing == 0)
+plot(x = predictions$x[ind], y = predictions$y_hat[ind], type = "l", col = "black",
+     xlab = "Mean temperature (°F)", bty = "n", main = "", ylim = c(0, 100), xlim = c(20, 80),
+     ylab = "Predicted Bike Count", lwd = 2)
+# add fill
+polygon(x = c(predictions$x, rev(predictions$x)),
+        y = c(predictions$y_hat_upper_forecast, rev(predictions$y_hat_lower_forecast)), col = 'grey80', border = NA)
+lines(predictions$x[-ind], predictions$y_hat[-ind], type = "l", col = "black", lwd = 2)
+lines(predictions$x[ind], predictions$y_hat[ind], type = "l", col = "black", lwd = 2)
+
+# Add confidence interval lines (these lie practically on the predictions)
+#lines(predictions$x, predictions$y_hat_upper, col = "red", lty = 2, lwd = 1.5)  # Upper bound
+#lines(predictions$x, predictions$y_hat_lower, col = "red", lty = 2, lwd = 1.5)  # Lower bound
+# Add forecast interval lines
+lines(predictions$x[ind], predictions$y_hat_upper_forecast[ind], col = "red", lty = 5, lwd = 1.5)  # Upper bound
+lines(predictions$x[ind], predictions$y_hat_lower_forecast[ind], col = "red", lty = 5, lwd = 1.5)  # Lower bound
+lines(predictions$x[-ind], predictions$y_hat_upper_forecast[-ind], col = "red", lty = 5, lwd = 1.5)  # Upper bound
+lines(predictions$x[-ind], predictions$y_hat_lower_forecast[-ind], col = "red", lty = 5, lwd = 1.5)
+# Add more info
+axis(side = 4, at = seq(0, 100, by = 20), labels = seq(0, 100, by = 20))
+abline(h = seq(0, 100, by = 20), col = alpha("black", 0.3), lty = "aa")
